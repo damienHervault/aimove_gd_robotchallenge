@@ -2,7 +2,7 @@
 <package format="2">
   <name>aimove_gd_robotchallenge</name>
   <version>0.0.1</version>
-  <description>Robotic arm realtime control from depth camera/description>
+  <description>Robotic arm realtime control from depth camera</description>
 
   <maintainer email="damien.hervault@mines-paristech.fr">Damien</maintainer>
   <maintainer email="geraud-martin.montchalin@mines-paristech.fr">Géraud</maintainer>
@@ -10,6 +10,11 @@
   <license>MIT</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
 
   <export>
   </export>
