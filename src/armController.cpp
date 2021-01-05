@@ -1,6 +1,5 @@
 #include <armController.hpp>
-
-
+#include <cameraReader.hpp>
 
 void callbackRosOpenpose(const ros_openpose::Frame msg){
   //ROS_INFO pour communiquer avec classe dans le cmd
@@ -30,4 +29,18 @@ int main(int argc, char* argv[])
     - Sujet :
     -- trouver comment faire la transformation repère camera > repère table
   */
+
+  const std::string colorTopic = "/camera/color/image_raw";
+  const std::string camInfoTopic = "/camera/color/camera_info";
+  const std::string depthTopic = "/camera/aligned_depth_to_color/image_raw";
+  const auto cameraReader = std::make_shared<CameraReader>(nh, colorTopic, depthTopic, camInfoTopic);
+/*#if TRUE
+  std::string colorTopic   = "/camera/color/image_raw";
+  std::string depthTopic   = "/camera/aligned_depth_to_color/image_raw";
+  std::string camInfoTopic = "/camera/color/camera_info";
+#else
+  std::string colorTopic   = "/kinect2/sd/image_color_rect";
+  std::string depthTopic   = "/kinect2/sd/image_depth";
+  std::string camInfoTopic = "/kinect2/sd/camera_info";
+#endif*/
 }
