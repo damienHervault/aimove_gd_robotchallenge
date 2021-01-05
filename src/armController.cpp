@@ -2,6 +2,13 @@
 #include <cameraReader.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "settings.h"
+#include "quadtree_t.h"
+#include "kernel_t.h"
+#include "plane_t.h"
+#include "accumulatorball_t.h"
+#include "hough.h"
+
 void callbackRosOpenpose(const ros_openpose::Frame msg){
   //ROS_INFO pour communiquer avec classe dans le cmd
   ROS_INFO("%f", msg.persons[0].bodyParts[4].point.z);
@@ -19,7 +26,15 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
       calibrated = true;
       cv::imshow("depth image", depthImage);
 
-      // TODO call D-KHT
+      // Plane computation
+      hough_settings settings;
+      quadtree_t father;
+      //load_input(settings, father);
+      //father.compute_centroid();
+      std::vector<plane_t> planes_out;
+      std::vector<kernel_t> used_kernels;
+      //accumulatorball_t *accum = kht3d(planes_out, father, settings, used_kernels);
+      std::cout << planes_out.size() << " PLANES FOUND." << endl;;
     }
     else
       ROS_WARN_THROTTLE(10, "Empty depth image frame detected. Waiting...");

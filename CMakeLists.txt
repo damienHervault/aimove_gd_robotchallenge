@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
 project(aimove_gd_robotchallenge)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+# add_compile_options(-std=c++11 -pthread)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -138,7 +139,8 @@ link_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(armController_node
   src/armController.cpp
-  src/cameraReader.cpp)
+  src/cameraReader.cpp
+  src/D-KHT/quadtree_t.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
