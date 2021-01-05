@@ -11,11 +11,12 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
 	ros_openpose
   std_msgs
+  cv_bridge
   libdlib)
 
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
 
+## System dependencies are found with CMake's conventions
+find_package(OpenCV REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -116,32 +117,28 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
   src/D-KHT
+  ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
+
+## MESSAGE(WARNING "catkin_LIBRARY_DIRS: " ${catkin_LIBRARY_DIRS})
 
 link_directories(
   ${catkin_LIBRARY_DIRS}
 )
 
-## Declare a C++ library
-add_library(armController
-  src/armController.cpp
-)
-
-add_library(dkht
-  src/D-KHT/main.cpp
-)
-
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-add_dependencies(armController ${armController_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+## add_dependencies(armController ${armController_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(armController_node src/armController.cpp)
+add_executable(armController_node
+  src/armController.cpp
+  src/cameraReader.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -156,6 +153,7 @@ add_dependencies(armController_node ${armController_EXPORTED_TARGETS} ${catkin_E
 ## Specify libraries to link a library or executable target against
 target_link_libraries(armController_node
    ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
 )
 
 #############
