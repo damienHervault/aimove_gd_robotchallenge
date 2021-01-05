@@ -28,6 +28,17 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 
       // Plane computation
       hough_settings settings;
+      settings.max_point_distance = 0.0;
+      settings.max_distance2plane = 150;
+      settings.s_t = .36;
+      settings.n_phi = 30;
+      settings.n_rho = 80;
+      settings.s_ms = 200;
+      settings.inv_camera_fx = 1.0 / 526.37;
+      settings.inv_camera_fy = 1.0 / 526.37;
+      settings.camera_cx = 313.68;
+      settings.camera_cy = 259.02;
+      
       quadtree_t father;
       //load_input(settings, father);
       //father.compute_centroid();
