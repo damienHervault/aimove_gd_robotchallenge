@@ -10,7 +10,8 @@ project(aimove_gd_robotchallenge)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
 	ros_openpose
-  std_msgs)
+  std_msgs
+  libdlib)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -104,6 +105,7 @@ catkin_package(
   CATKIN_DEPENDS
   std_msgs
   ros_openpose
+  libdlib
 )
 
 ###########
@@ -115,6 +117,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  src/D-KHT
 )
 
 link_directories(
@@ -124,6 +127,10 @@ link_directories(
 ## Declare a C++ library
 add_library(armController
   src/armController.cpp
+)
+
+add_library(dkht
+  src/D-KHT/main.cpp
 )
 
 ## Add cmake target dependencies of the library
