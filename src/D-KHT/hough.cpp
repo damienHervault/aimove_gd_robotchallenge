@@ -150,6 +150,6 @@ accumulatorball_t *kht3d( std::vector<plane_t> &planes, quadtree_t &father, houg
         }
     }
 
-    dlib::save_png(output, settings.output_filename);
+    // dlib::save_png(output, settings.output_filename);
     return accum;
 }

@@ -141,7 +141,12 @@ link_directories(
 add_executable(armController_node
   src/armController.cpp
   src/cameraReader.cpp
-  src/D-KHT/quadtree_t.cpp)
+  src/D-KHT/accumulatorball_t.cpp
+  src/D-KHT/hough.cpp
+  src/D-KHT/logger.cpp
+  src/D-KHT/quadtree_t.cpp
+  src/D-KHT/voting.cpp
+  )
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

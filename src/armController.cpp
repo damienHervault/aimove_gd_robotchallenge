@@ -15,6 +15,10 @@
 #include "plane_t.h"
 #include "accumulatorball_t.h"
 #include "hough.h"
+#include "reader_file.h"
+
+#include <libdlib/opencv/cv_image.h>
+#include <libdlib/image_transforms/assign_image.h>
 
 float posX, posY, posZ;
 
@@ -29,9 +33,10 @@ void callbackRosOpenpose(const ros_openpose::Frame msg){
 }
 
 void calibrate(std::shared_ptr<CameraReader> readers) {
+
   ros::Rate loopRate(10);
   bool calibrated = false;
-  while (!calibrated)
+  while (ros::ok() /* && !calibrated*/)
   {
     auto depthImage = readers->getDepthFrame();
     if (!depthImage.empty()) {
@@ -51,16 +56,23 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
       settings.camera_cx = 313.68;
       settings.camera_cy = 259.02;
 
+      // cv::Mat to dlib::array2d<uint16_t> NOT WORKING
       quadtree_t father;
-      //load_input(settings, father);
-      //father.compute_centroid();
+      dlib::assign_image(father.im, dlib::cv_image<uint16_t>(depthImage));
+      load_input(settings, father);
+      father.compute_centroid();
       std::vector<plane_t> planes_out;
       std::vector<kernel_t> used_kernels;
-      //accumulatorball_t *accum = kht3d(planes_out, father, settings, used_kernels);
+      accumulatorball_t *accum = kht3d(planes_out, father, settings, used_kernels);
       std::cout << planes_out.size() << " PLANES FOUND." << endl;;
     }
     else
-      ROS_WARN_THROTTLE(10, "Empty depth image frame detected. Waiting...");
+      // display the error at most once per 10 seconds
+      ROS_WARN_THROTTLE(10, "Empty depth image frame detected. Ignoring...");
+    int key = cv::waitKey(1) & 255;
+    if (key == 27)  // escape key
+      break;
+
     ros::spinOnce();
     loopRate.sleep();
   }
@@ -78,13 +90,11 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 
 int main(int argc, char* argv[]) {
 
-  ros::init(argc, argv, "armController : au boulot les glandeurs !!");
+  ros::init(argc, argv, "Starting robot challenge");
   ros::NodeHandle nh;
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
 
   std::cout<<"Calibration"<<std::endl;
-#if TRUE
+#if 1
   // realsense
   std::string colorTopic   = "/camera/color/image_raw";
   std::string depthTopic   = "/camera/aligned_depth_to_color/image_raw";
@@ -95,8 +105,12 @@ int main(int argc, char* argv[]) {
   std::string depthTopic   = "/kinect2/sd/image_depth";
   std::string camInfoTopic = "/kinect2/sd/camera_info";
 #endif
+std::cout<<depthTopic<<std::endl;
   const auto cameraReader = std::make_shared<CameraReader>(nh, colorTopic, depthTopic, camInfoTopic);
   calibrate(cameraReader);
+#if 1
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
 
   //frame est le nom du rostopic dans lequelle rosOpenpose publie son msg
   ros::Subscriber counter1_sub = nh.subscribe("frame", 10, callbackRosOpenpose);
@@ -132,5 +146,5 @@ int main(int argc, char* argv[]) {
   move_group.execute(my_plan);
   //move_group.move();
 	}
-
+#endif
 }

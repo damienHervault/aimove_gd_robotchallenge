@@ -13,7 +13,7 @@ static void load_input(hough_settings &settings, quadtree_t &node) {
     node.m_level = 0;
     node.m_root = &node;
 
-    dlib::load_png(node.im, settings.input_filename);
+    //dlib::load_png(node.im, settings.input_filename);
 
     node.sat = SAT(node.im.nr(), node.im.nc());
 
