@@ -9,16 +9,7 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
-#include "settings.h"
-#include "quadtree_t.h"
-#include "kernel_t.h"
-#include "plane_t.h"
-#include "accumulatorball_t.h"
-#include "hough.h"
-#include "reader_file.h"
-
-#include <libdlib/opencv/cv_image.h>
-#include <libdlib/image_transforms/assign_image.h>
+#include "plane_detection.h"
 
 float posX, posY, posZ;
 
@@ -32,39 +23,25 @@ void callbackRosOpenpose(const ros_openpose::Frame msg){
   //point correspond au coordonnées 3D du bodyPart
 }
 
+PlaneDetection plane_detection;
+
 void calibrate(std::shared_ptr<CameraReader> readers) {
 
   ros::Rate loopRate(10);
   bool calibrated = false;
   while (ros::ok() /* && !calibrated*/)
   {
+    auto colorImage = readers->getColorFrame();
     auto depthImage = readers->getDepthFrame();
-    if (!depthImage.empty()) {
+    if (!depthImage.empty() && !colorImage.empty()) {
       calibrated = true;
+      depthImage.convertTo(depthImage, CV_16U, 55535);
       cv::imshow("depth image", depthImage);
 
-      // Plane computation
-      hough_settings settings;
-      settings.max_point_distance = 0.0;
-      settings.max_distance2plane = 150;
-      settings.s_t = .36;
-      settings.n_phi = 30;
-      settings.n_rho = 80;
-      settings.s_ms = 200;
-      settings.inv_camera_fx = 1.0 / 526.37;
-      settings.inv_camera_fy = 1.0 / 526.37;
-      settings.camera_cx = 313.68;
-      settings.camera_cy = 259.02;
-
-      // cv::Mat to dlib::array2d<uint16_t> NOT WORKING
-      quadtree_t father;
-      dlib::assign_image(father.im, dlib::cv_image<uint16_t>(depthImage));
-      load_input(settings, father);
-      father.compute_centroid();
-      std::vector<plane_t> planes_out;
-      std::vector<kernel_t> used_kernels;
-      accumulatorball_t *accum = kht3d(planes_out, father, settings, used_kernels);
-      std::cout << planes_out.size() << " PLANES FOUND." << endl;;
+      plane_detection.readDepthImage(depthImage);
+    	plane_detection.readColorImage(colorImage);
+    	plane_detection.runPlaneDetection();
+      cv::imshow("segmentation", plane_detection.seg_img_);
     }
     else
       // display the error at most once per 10 seconds

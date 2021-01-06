@@ -3,7 +3,7 @@ project(aimove_gd_robotchallenge)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11 -pthread)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -fpermissive")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -120,6 +120,9 @@ catkin_package(
 include_directories(
   include
   src/D-KHT
+  src/RGBDPlaneDetection
+  src/RGBDPlaneDetection/MRF2.2
+  src/RGBDPlaneDetection/peac
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
@@ -146,6 +149,17 @@ add_executable(armController_node
   src/D-KHT/logger.cpp
   src/D-KHT/quadtree_t.cpp
   src/D-KHT/voting.cpp
+  src/RGBDPlaneDetection/plane_detection.cpp
+  src/RGBDPlaneDetection/MRF2.2/BP-S.cpp
+  src/RGBDPlaneDetection/MRF2.2/GCoptimization.cpp
+  src/RGBDPlaneDetection/MRF2.2/graph.cpp
+  src/RGBDPlaneDetection/MRF2.2/ICM.cpp
+  src/RGBDPlaneDetection/MRF2.2/LinkedBlockList.cpp
+  src/RGBDPlaneDetection/MRF2.2/maxflow.cpp
+  src/RGBDPlaneDetection/MRF2.2/MaxProdBP.cpp
+  src/RGBDPlaneDetection/MRF2.2/mrf.cpp
+  src/RGBDPlaneDetection/MRF2.2/regions-maxprod.cpp
+  src/RGBDPlaneDetection/MRF2.2/TRW-S.cpp
   )
 
 ## Rename C++ executable without prefix
