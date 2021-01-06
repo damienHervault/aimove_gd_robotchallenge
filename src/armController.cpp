@@ -35,13 +35,16 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
     auto depthImage = readers->getDepthFrame();
     if (!depthImage.empty() && !colorImage.empty()) {
       calibrated = true;
+
       depthImage.convertTo(depthImage, CV_16U, 55535);
-      cv::imshow("depth image", depthImage);
+
+      //cv::imshow("depth image", depthImage);
+      std::cout<<"depthSize"<<depthImage.size()<<std::endl;
 
       plane_detection.readDepthImage(depthImage);
     	plane_detection.readColorImage(colorImage);
     	plane_detection.runPlaneDetection();
-      cv::imshow("segmentation", plane_detection.seg_img_);
+      std::cout<<"plane_detection.seg_img_"<<plane_detection.seg_img_.size()<<std::endl;
     }
     else
       // display the error at most once per 10 seconds
@@ -71,7 +74,7 @@ int main(int argc, char* argv[]) {
   ros::NodeHandle nh;
 
   std::cout<<"Calibration"<<std::endl;
-#if 1
+#if 0
   // realsense
   std::string colorTopic   = "/camera/color/image_raw";
   std::string depthTopic   = "/camera/aligned_depth_to_color/image_raw";
@@ -100,10 +103,11 @@ std::cout<<depthTopic<<std::endl;
   const robot_state::JointModelGroup* joint_model_group =
       move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
 
-  move_group.setGoalOrientationTolerance(0.01);
-  move_group.setGoalJointTolerance(0.01);
-  move_group.setGoalPositionTolerance(0.01);
+  move_group.setGoalOrientationTolerance(0.05);
+  move_group.setGoalJointTolerance(0.05);
+  move_group.setGoalPositionTolerance(0.05);
   move_group.setPlanningTime(2.0); //in seconds, default 5
+  //move_group.setPoseReferenceFrame(world..); By default the ref frame is the one of the robot model
 
   geometry_msgs::Pose target_pose1;
   while (ros::ok()){

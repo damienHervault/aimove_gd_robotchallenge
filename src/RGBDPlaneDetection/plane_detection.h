@@ -25,8 +25,8 @@ const double kFx = 583;
 const double kFy = 583;
 const double kCx = 320;
 const double kCy = 240;
-const int kDepthWidth = 640;
-const int kDepthHeight = 480;
+const int kDepthWidth = 512;
+const int kDepthHeight = 424;
 
 struct ImagePointCloud
 {

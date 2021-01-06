@@ -119,7 +119,6 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
   include
-  src/D-KHT
   src/RGBDPlaneDetection
   src/RGBDPlaneDetection/MRF2.2
   src/RGBDPlaneDetection/peac
@@ -144,11 +143,6 @@ link_directories(
 add_executable(armController_node
   src/armController.cpp
   src/cameraReader.cpp
-  src/D-KHT/accumulatorball_t.cpp
-  src/D-KHT/hough.cpp
-  src/D-KHT/logger.cpp
-  src/D-KHT/quadtree_t.cpp
-  src/D-KHT/voting.cpp
   src/RGBDPlaneDetection/plane_detection.cpp
   src/RGBDPlaneDetection/MRF2.2/BP-S.cpp
   src/RGBDPlaneDetection/MRF2.2/GCoptimization.cpp
