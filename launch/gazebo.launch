@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- startup ur gazebo -->
+  <include file="$(find ur_gazebo)/launch/ur3.launch">
+  </include>
+
+  <param name="env_description" command="cat '$(find aimove_gd_robotchallenge)/urdf/env.urdf'" />
+  <node name="env_spawn" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-urdf -param env_description -model m2wr" />
+
+</launch>
