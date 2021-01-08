@@ -4,7 +4,7 @@ Robotic arm realtime control from depth camera
 
 https://github.com/CMU-Perceptual-Computing-Lab/openpose
 http://wiki.ros.org/melodic/Installation/Ubuntu
-https://github.com/UniversalRobots/Universal_Robots_ROS_Driver
+https://github.com/ros-industrial/universal_robot
 https://github.com/ravijo/ros_openpose
 http://docs.ros.org/en/melodic/api/moveit_tutorials/html/index.html
 
