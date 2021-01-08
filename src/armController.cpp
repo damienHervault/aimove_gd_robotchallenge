@@ -87,12 +87,19 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 
 /*
   TODO list
-  - Basics :
-  -- trouver comment dupper les logs dans la console: done
-  -- trouver comment écouter le node ros_openpose: done
-  -- trouver comment écrire dans moveit
-  - Sujet :
-  -- trouver comment faire la transformation repère camera > repère table
+  - DONE :
+  -- dump des logs dans la console
+  -- écouter le node ros_openpose
+  -- donner des commandes à moveit
+  -- ajouter des objets dans gazebo
+  -- calcul des coordonées de la table dans le repère camera
+  - TODO
+  -- ajouter objets 3D pour la camera et le squelette 3D
+  -- donner la position d'objets dans gazebo
+  -- calculer la transformation repère camera <> repère table
+  -- choisir la logique pour trouver un point précis sur la table
+  -- calculer la transformation repère camera <> repère robot
+  -- optimiser le path planning de moveit
 */
 
 int main(int argc, char* argv[]) {
@@ -144,7 +151,6 @@ std::cout<<depthTopic<<std::endl;
     target_pose1.position.z = posZ-1.3;
     std::cout<<"posZ = "<<posZ<<std::endl;
     move_group.setPoseTarget(target_pose1);
-
 
   moveit::planning_interface::MoveGroupInterface::Plan my_plan;
 
