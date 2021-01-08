@@ -9,9 +9,9 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
+//#define USE_KINECT
+
 #include "plane_detection.h"
-
-
 
 float posX, posY, posZ;
 
@@ -75,16 +75,16 @@ int main(int argc, char* argv[]) {
   ros::NodeHandle nh;
 
   std::cout<<"Calibration"<<std::endl;
-#if 0
-  // realsense
-  std::string colorTopic   = "/camera/color/image_raw";
-  std::string depthTopic   = "/camera/aligned_depth_to_color/image_raw";
-  std::string camInfoTopic = "/camera/color/camera_info";
-#else
+#ifdef USE_KINECT
   // kinect
   std::string colorTopic   = "/kinect2/sd/image_color_rect";
   std::string depthTopic   = "/kinect2/sd/image_depth";
   std::string camInfoTopic = "/kinect2/sd/camera_info";
+#else
+  // realsense
+  std::string colorTopic   = "/camera/color/image_raw";
+  std::string depthTopic   = "/camera/aligned_depth_to_color/image_raw";
+  std::string camInfoTopic = "/camera/color/camera_info";
 #endif
 std::cout<<depthTopic<<std::endl;
   const auto cameraReader = std::make_shared<CameraReader>(nh, colorTopic, depthTopic, camInfoTopic);
