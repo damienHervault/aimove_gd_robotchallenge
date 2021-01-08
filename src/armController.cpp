@@ -11,6 +11,8 @@
 
 #include "plane_detection.h"
 
+
+
 float posX, posY, posZ;
 
 void callbackRosOpenpose(const ros_openpose::Frame msg){
@@ -38,13 +40,12 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 
       depthImage.convertTo(depthImage, CV_16U, 55535);
 
-      //cv::imshow("depth image", depthImage);
-      std::cout<<"depthSize"<<depthImage.size()<<std::endl;
 
       plane_detection.readDepthImage(depthImage);
     	plane_detection.readColorImage(colorImage);
     	plane_detection.runPlaneDetection();
-      std::cout<<"plane_detection.seg_img_"<<plane_detection.seg_img_.size()<<std::endl;
+      cv::imshow("Seg image", plane_detection.seg_img_);
+      //std::cout<<"plane_detection.seg_img_"<<plane_detection.seg_img_.size()<<std::endl;
     }
     else
       // display the error at most once per 10 seconds
