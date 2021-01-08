@@ -11,10 +11,9 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -fpermissive")
 find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   roscpp
-	ros_openpose
+  ros_openpose
   std_msgs
-  cv_bridge
-  libdlib)
+  cv_bridge)
 
 
 ## System dependencies are found with CMake's conventions
@@ -108,7 +107,6 @@ catkin_package(
   CATKIN_DEPENDS
   std_msgs
   ros_openpose
-  libdlib
 )
 
 ###########
