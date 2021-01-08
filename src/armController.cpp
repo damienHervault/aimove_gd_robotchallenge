@@ -25,8 +25,6 @@ void callbackRosOpenpose(const ros_openpose::Frame msg){
   //point correspond au coordonnées 3D du bodyPart
 }
 
-PlaneDetection plane_detection;
-
 void calibrate(std::shared_ptr<CameraReader> readers) {
 
   ros::Rate loopRate(10);
@@ -40,12 +38,40 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 
       depthImage.convertTo(depthImage, CV_16U, 55535);
 
-
+      PlaneDetection plane_detection;
       plane_detection.readDepthImage(depthImage);
     	plane_detection.readColorImage(colorImage);
     	plane_detection.runPlaneDetection();
       cv::imshow("Seg image", plane_detection.seg_img_);
-      //std::cout<<"plane_detection.seg_img_"<<plane_detection.seg_img_.size()<<std::endl;
+
+      plane_detection.computePlaneSumStats(false);
+      int i, max = -1, idMax = -1;
+      for (i=0; i<plane_detection.plane_pixel_nums_.size(); i++) {
+        if (plane_detection.plane_pixel_nums_[i] > max) {
+          max = plane_detection.plane_pixel_nums_[i];
+          idMax = i;
+        }
+      }
+
+      std::cout<<"number of planes detected : "<<plane_detection.plane_num_<<std::endl;
+      if (idMax >= 0) {
+        std::cout << "biggest plane index : " << idMax << std::endl;
+        std::cout << "biggest plane size  : " << max << std::endl;
+        int vidx = plane_detection.plane_vertices_[idMax][0];
+        cv::Vec3b c = plane_detection.seg_img_.at<cv::Vec3b>(vidx / kDepthWidth, vidx % kDepthWidth);
+        std::cout << "biggest plane color : "
+          << int(c.val[2]) << " "
+          << int(c.val[1]) << " "
+          << int(c.val[0]) << " " << std::endl; // OpenCV uses BGR by default
+        std::cout << "biggest plane normal : "
+          << plane_detection.plane_filter.extractedPlanes[idMax]->normal[0] << " "
+          << plane_detection.plane_filter.extractedPlanes[idMax]->normal[1] << " "
+          << plane_detection.plane_filter.extractedPlanes[idMax]->normal[2] << " " << std::endl;
+        std::cout << "biggest plane center : "
+          << plane_detection.plane_filter.extractedPlanes[idMax]->center[0] << " "
+          << plane_detection.plane_filter.extractedPlanes[idMax]->center[1] << " "
+          << plane_detection.plane_filter.extractedPlanes[idMax]->center[2] << " " << std::endl;
+      }
     }
     else
       // display the error at most once per 10 seconds

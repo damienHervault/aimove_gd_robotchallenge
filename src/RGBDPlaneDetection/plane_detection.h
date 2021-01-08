@@ -129,6 +129,7 @@ private:
 			0.5);
 	}
 
+public:
 	void computePlaneSumStats(bool run_mrf = false);
 
 };
