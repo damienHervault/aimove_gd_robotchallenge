@@ -1,7 +1,8 @@
 <?xml version="1.0"?>
 <launch>
   <!-- startup ur gazebo -->
-  <include file="$(find ur_gazebo)/launch/ur3.launch">
+  <!-- TODO choose  ur3 or ur3_joint_limited ? -->
+  <include file="$(find ur_gazebo)/launch/ur3_joint_limited.launch">
   </include>
 
   <param name="env_description" command="cat '$(find aimove_gd_robotchallenge)/urdf/env.urdf'" />

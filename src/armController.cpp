@@ -93,12 +93,20 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
   -- donner des commandes à moveit
   -- ajouter des objets dans gazebo
   -- calcul des coordonées de la table dans le repère camera
+  -
+  - SHORT TERM Plan
+  -- calculer coordonées de la main dans le referentiel camera
+  -- envoyer entre chaque pas de temps l'ordre de movement au robot identique au delta de position de la main
+  -- ajout du squelette humain
+  -- position realtime des joints du squelette et de la table
+  -
   - TODO
-  -- ajouter objets 3D pour la camera et le squelette 3D
-  -- donner la position d'objets dans gazebo
-  -- calculer la transformation repère camera <> repère table
-  -- choisir la logique pour trouver un point précis sur la table
-  -- calculer la transformation repère camera <> repère robot
+  Wk1 -- ajouter objets 3D pour la camera et le HUMAN squelette 3D
+  Wk1 -- donner la position d'objets dans gazebo
+  Wk1 -- calculer la transformation repère camera <> repère table
+  -- add the gripper to the robot
+  -- opt. : choisir la logique pour trouver un point précis sur la table
+  ? -- calculer la transformation repère camera <> repère robot
   -- optimiser le path planning de moveit
 */
 
