@@ -9,18 +9,26 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
-//#define USE_KINECT
+#define USE_KINECT
 
 #include "plane_detection.h"
 
-float posX, posY, posZ;
+float pos[3] = {};
+float camera2table[9] = {};
+
+//Convert from ref camera to ref Table
+void toTable(const float pos[3], float out[3]){
+  out[0] = camera2table[0]*pos[0] + camera2table[3]*pos[1] + camera2table[6]*pos[2];
+  out[1] = camera2table[1]*pos[0] + camera2table[4]*pos[1] + camera2table[7]*pos[2];
+  out[2] = camera2table[2]*pos[0] + camera2table[5]*pos[1] + camera2table[8]*pos[2];
+}
 
 void callbackRosOpenpose(const ros_openpose::Frame msg){
   //ROS_INFO pour communiquer avec classe dans le cmd
   //ROS_INFO("%f", msg.persons[0].bodyParts[4].point.z);
-  posX = msg.persons[0].bodyParts[4].point.x;
-  posY = msg.persons[0].bodyParts[4].point.y;
-  posZ = msg.persons[0].bodyParts[4].point.z;
+  pos[0] = msg.persons[0].bodyParts[4].point.x;
+  pos[1] = msg.persons[0].bodyParts[4].point.y;
+  pos[2] = msg.persons[0].bodyParts[4].point.z;
   //bodyParts[4] correspond au poignet droit
   //point correspond au coordonnées 3D du bodyPart
 }
@@ -29,12 +37,12 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 
   ros::Rate loopRate(10);
   bool calibrated = false;
-  while (ros::ok() /* && !calibrated*/)
+  while (ros::ok()  && !calibrated)
   {
     auto colorImage = readers->getColorFrame();
     auto depthImage = readers->getDepthFrame();
     if (!depthImage.empty() && !colorImage.empty()) {
-      calibrated = true;
+
 
       depthImage.convertTo(depthImage, CV_16U, 55535);
 
@@ -71,6 +79,27 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
           << plane_detection.plane_filter.extractedPlanes[idMax]->center[0] << " "
           << plane_detection.plane_filter.extractedPlanes[idMax]->center[1] << " "
           << plane_detection.plane_filter.extractedPlanes[idMax]->center[2] << " " << std::endl;
+
+        //Vecteur Z
+        camera2table[2] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[0];
+        camera2table[5] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[1];
+        camera2table[8] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[2];
+
+        // VEcteur X
+        camera2table[0] = camera2table[5];
+        camera2table[3] = camera2table[2];
+        camera2table[6] = - 2.0*camera2table[0]*camera2table[3]/camera2table[8];
+        float norm = sqrtf((powf(camera2table[0],2)+powf(camera2table[3],2)+powf(camera2table[6],2)));
+        camera2table[0] /= norm;
+        camera2table[3] /= norm;
+        camera2table[6] /= norm;
+
+        //Vecteur Y
+        camera2table[1] = camera2table[5]*camera2table[6] - camera2table[8]*camera2table[3];
+        camera2table[4] = camera2table[8]*camera2table[0] - camera2table[2]*camera2table[6];
+        camera2table[7] = camera2table[2]*camera2table[3] - camera2table[5]*camera2table[0];
+
+        calibrated = true;
       }
     }
     else
@@ -152,12 +181,41 @@ std::cout<<depthTopic<<std::endl;
   //move_group.setPoseReferenceFrame(world..); By default the ref frame is the one of the robot model
 
   geometry_msgs::Pose target_pose1;
+
+  //float init_PosX, init_PosY, init_PosZ = posX, posY, posZ;
+  //float current_pos[3] = {};
+  float old_pos[3] = {};
+  float diff[3] = {};
+  float tableDiff[3] = {};
+
   while (ros::ok()){
+    //on bloque les coordonnées le temps de la boucle
+    //current_pos[0] = pos[0];
+    //current_pos[1] = pos[1];
+    //current_pos[2] = pos[2];
+
+    diff[0] = pos[0] - old_pos[0];
+    diff[1] = pos[1] - old_pos[1];
+    diff[2] = pos[2] - old_pos[2];
+
+
+    toTable(diff, tableDiff);
+
+    //+1 Step
+    old_pos[0] = pos[0];
+    old_pos[1] = pos[1];
+    old_pos[2] = pos[2];
+
+
+    //We could add a waypoint at each openPose fram and then send the movement at each iteration
+    //However we may need to filter some entry so that it's not longer at every steps!
+
+    //We need the robotic arm and real arm to be approximately identically initialised in pos
     target_pose1.orientation.w = 1.0;
-    target_pose1.position.x = 0.28;
-    target_pose1.position.y = 0.2;
-    target_pose1.position.z = posZ-1.3;
-    std::cout<<"posZ = "<<posZ<<std::endl;
+    target_pose1.position.x += tableDiff[0];
+    target_pose1.position.y += tableDiff[1];
+    target_pose1.position.z += tableDiff[2];
+    //std::cout<<"posZ = "<<posZ<<std::endl;
     move_group.setPoseTarget(target_pose1);
 
   moveit::planning_interface::MoveGroupInterface::Plan my_plan;
