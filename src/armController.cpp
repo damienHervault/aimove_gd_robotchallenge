@@ -50,6 +50,7 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
       plane_detection.readDepthImage(depthImage);
     	plane_detection.readColorImage(colorImage);
     	plane_detection.runPlaneDetection();
+      cv::imshow("depthImage", depthImage);
       cv::imshow("Seg image", plane_detection.seg_img_);
 
       plane_detection.computePlaneSumStats(false);
@@ -187,7 +188,7 @@ std::cout<<depthTopic<<std::endl;
   float old_pos[3] = {};
   float diff[3] = {};
   float tableDiff[3] = {};
-
+  bool first_step = true;
   while (ros::ok()){
     //on bloque les coordonnées le temps de la boucle
     //current_pos[0] = pos[0];
@@ -211,19 +212,36 @@ std::cout<<depthTopic<<std::endl;
     //However we may need to filter some entry so that it's not longer at every steps!
 
     //We need the robotic arm and real arm to be approximately identically initialised in pos
-    target_pose1.orientation.w = 1.0;
-    target_pose1.position.x += tableDiff[0];
-    target_pose1.position.y += tableDiff[1];
-    target_pose1.position.z += tableDiff[2];
-    //std::cout<<"posZ = "<<posZ<<std::endl;
-    move_group.setPoseTarget(target_pose1);
+    if(first_step){
+      target_pose1.orientation.w = 1.0;
+      target_pose1.position.x = 0.0;
+      target_pose1.position.y = 0.5;
+      target_pose1.position.z = 0.15;
 
-  moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+      move_group.setPoseTarget(target_pose1);
+      moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+      bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+      ROS_INFO("Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+      move_group.execute(my_plan);
+      first_step = false;
+    }else{
+      target_pose1.orientation.w = 1.0;
+      target_pose1.position.x += tableDiff[0];
+      target_pose1.position.y += tableDiff[1];
+      target_pose1.position.z += tableDiff[2];
+      std::cout<<"target_pose1.position.x = "<<target_pose1.position.x<<std::endl;
+      std::cout<<"target_pose1.position.y = "<<target_pose1.position.y<<std::endl;
+      std::cout<<"target_pose1.position.z = "<<target_pose1.position.z<<std::endl;
+      move_group.setPoseTarget(target_pose1);
 
-  bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+      moveit::planning_interface::MoveGroupInterface::Plan my_plan;
 
-  ROS_INFO("Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
-  move_group.execute(my_plan);
+      bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+
+      ROS_INFO("Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+      move_group.execute(my_plan);
+    }
+
   //move_group.move();
 	}
 #endif

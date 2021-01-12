@@ -26,13 +26,13 @@ const double kFy = 583;
 const double kCx = 320;
 const double kCy = 240;
 
-#ifdef USE_KINECT
+//#ifdef USE_KINECT
 const int kDepthWidth = 512;
 const int kDepthHeight = 424;
-#else
-const int kDepthWidth = 640;
-const int kDepthHeight = 480;
-#endif
+//#else
+//const int kDepthWidth = 640;
+//const int kDepthHeight = 480;
+//#endif
 
 struct ImagePointCloud
 {
