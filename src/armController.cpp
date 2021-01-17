@@ -13,8 +13,11 @@
 
 #include "plane_detection.h"
 
+
 float pos[3] = {};
 float camera2table[9] = {};
+
+
 
 //Convert from ref camera to ref Table
 void toTable(const float pos[3], float out[3]){
@@ -175,10 +178,13 @@ std::cout<<depthTopic<<std::endl;
   const robot_state::JointModelGroup* joint_model_group =
       move_group.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
 
-  move_group.setGoalOrientationTolerance(0.05);
-  move_group.setGoalJointTolerance(0.05);
-  move_group.setGoalPositionTolerance(0.05);
-  move_group.setPlanningTime(2.0); //in seconds, default 5
+  move_group.setGoalOrientationTolerance(0.01);
+  move_group.setGoalJointTolerance(0.01);
+  move_group.setGoalPositionTolerance(0.005);
+  move_group.setNumPlanningAttempts(250);
+  //move_group.setPlanningTime(2.0); //in seconds, default 5
+  move_group.setMaxVelocityScalingFactor(1.0);
+  move_group.setMaxAccelerationScalingFactor(1.0);
   //move_group.setPoseReferenceFrame(world..); By default the ref frame is the one of the robot model
 
   geometry_msgs::Pose target_pose1;
@@ -212,35 +218,43 @@ std::cout<<depthTopic<<std::endl;
     //However we may need to filter some entry so that it's not longer at every steps!
 
     //We need the robotic arm and real arm to be approximately identically initialised in pos
-    if(first_step){
-      target_pose1.orientation.w = 1.0;
-      target_pose1.position.x = 0.0;
-      target_pose1.position.y = 0.5;
-      target_pose1.position.z = 0.15;
 
-      move_group.setPoseTarget(target_pose1);
-      moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-      bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-      ROS_INFO("Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
-      move_group.execute(my_plan);
-      first_step = false;
-    }else{
-      target_pose1.orientation.w = 1.0;
-      target_pose1.position.x += tableDiff[0];
-      target_pose1.position.y += tableDiff[1];
-      target_pose1.position.z += tableDiff[2];
-      std::cout<<"target_pose1.position.x = "<<target_pose1.position.x<<std::endl;
-      std::cout<<"target_pose1.position.y = "<<target_pose1.position.y<<std::endl;
-      std::cout<<"target_pose1.position.z = "<<target_pose1.position.z<<std::endl;
-      move_group.setPoseTarget(target_pose1);
 
-      moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+      if(first_step){
+        target_pose1.orientation.w = 1.0;
+        target_pose1.position.x = -0.13;
+        target_pose1.position.y = 0.10;
+        target_pose1.position.z = 0.65;
 
-      bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        move_group.setPoseTarget(target_pose1);
+        moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+        bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        ROS_INFO("Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+        move_group.execute(my_plan);
+        first_step = false;
+      }else{
+        target_pose1.orientation.x = 0.0;
+        target_pose1.orientation.y = 0.0;
+        target_pose1.orientation.z = 0.0;
+        target_pose1.orientation.w = 1.0;
+        target_pose1.position.x += 0.0;//tableDiff[0];
+        target_pose1.position.y += 0.0;//tableDiff[1];
+        target_pose1.position.z += -0.01;//tableDiff[2];
+        std::cout<<"target_pose1.position.x = "<<target_pose1.position.x<<std::endl;
+        std::cout<<"target_pose1.position.y = "<<target_pose1.position.y<<std::endl;
+        std::cout<<"target_pose1.position.z = "<<target_pose1.position.z<<std::endl;
+        move_group.setPoseTarget(target_pose1);
 
-      ROS_INFO("Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
-      move_group.execute(my_plan);
-    }
+        //OMPL Optimisation : https://github.com/ros-planning/moveit/issues/358
+
+        moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+
+        bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+
+        ROS_INFO("Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+        move_group.execute(my_plan);
+      }
+
 
   //move_group.move();
 	}
