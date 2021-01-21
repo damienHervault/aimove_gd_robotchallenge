@@ -14,3 +14,5 @@ Robotic arm realtime control from depth camera
 
 * https://hal-mines-paristech.archives-ouvertes.fr/hal-02276236/document
 * https://medium.com/cse-468-568-robotic-algorithms/project-proposal-31aa5f095857
+
+* https://github.com/msr-peng/openpose_ros_visualization
