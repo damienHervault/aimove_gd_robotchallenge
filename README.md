@@ -18,3 +18,4 @@ Robotic arm realtime control from depth camera
 * https://github.com/msr-peng/openpose_ros_visualization
 * https://github.com/Seri-Lee/robotis_op3_following_motion
 * https://www.universal-robots.com/articles/ur/parameters-for-calculations-of-kinematics-and-dynamics/
+* https://github.com/robotology/human-gazebo
