@@ -16,3 +16,4 @@ Robotic arm realtime control from depth camera
 * https://medium.com/cse-468-568-robotic-algorithms/project-proposal-31aa5f095857
 
 * https://github.com/msr-peng/openpose_ros_visualization
+* https://github.com/Seri-Lee/robotis_op3_following_motion
