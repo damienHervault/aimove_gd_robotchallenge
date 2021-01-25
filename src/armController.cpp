@@ -9,6 +9,7 @@
 #include <moveit_msgs/AttachedCollisionObject.h>
 #include <moveit_msgs/CollisionObject.h>
 
+
 #define USE_KINECT
 
 #include "plane_detection.h"

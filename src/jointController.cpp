@@ -12,6 +12,18 @@
 #include <ros/ros.h>
 #include "ros/time.h"
 #include <trajectory_msgs/JointTrajectory.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
+#include <trajectory_msgs/JointTrajectoryPoint.h>
+#include <math.h>
+
+#include <ur_kinematics/ur_kin.h>
+
+// MoveIt!
+#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <moveit/robot_model/robot_model.h>
+#include <moveit/robot_state/robot_state.h>
+
+
 
 #define USE_KINECT
 
@@ -19,24 +31,36 @@
 
 
 
-float pos[3] = {};
-float camera2table[9] = {};
+double pos[3] = {};
+double jointAngles[6] = {};
+double camera2table[9] = {};
+
 
 
 
 //Convert from ref camera to ref Table
-void toTable(const float pos[3], float out[3]){
+void toTable(const double pos[3], double out[3]){
   out[0] = camera2table[0]*pos[0] + camera2table[3]*pos[1] + camera2table[6]*pos[2];
   out[1] = camera2table[1]*pos[0] + camera2table[4]*pos[1] + camera2table[7]*pos[2];
   out[2] = camera2table[2]*pos[0] + camera2table[5]*pos[1] + camera2table[8]*pos[2];
 }
 
+void callbackJointAngles(const control_msgs::JointTrajectoryControllerState& traj ){
+  for (int i=0; i<6; i++){
+    jointAngles[i] = traj.actual.positions[i];
+  }
+}
+
 void callbackRosOpenpose(const ros_openpose::Frame msg){
   //ROS_INFO pour communiquer avec classe dans le cmd
   //ROS_INFO("%f", msg.persons[0].bodyParts[4].point.z);
-  pos[0] = msg.persons[0].bodyParts[4].point.x;
-  pos[1] = msg.persons[0].bodyParts[4].point.y;
-  pos[2] = msg.persons[0].bodyParts[4].point.z;
+  if (msg.persons.size() > 0) {
+    pos[0] = msg.persons[0].bodyParts[4].point.x;
+    pos[1] = msg.persons[0].bodyParts[4].point.y;
+    pos[2] = msg.persons[0].bodyParts[4].point.z;
+  }
+  else
+    pos[0] = nanf("0");
   //bodyParts[4] correspond au poignet droit
   //point correspond au coordonnées 3D du bodyPart
 }
@@ -98,7 +122,7 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
         camera2table[0] = camera2table[5];
         camera2table[3] = camera2table[2];
         camera2table[6] = - 2.0*camera2table[0]*camera2table[3]/camera2table[8];
-        float norm = sqrtf((powf(camera2table[0],2)+powf(camera2table[3],2)+powf(camera2table[6],2)));
+        double norm = sqrtf((powf(camera2table[0],2)+powf(camera2table[3],2)+powf(camera2table[6],2)));
         camera2table[0] /= norm;
         camera2table[3] /= norm;
         camera2table[6] /= norm;
@@ -149,8 +173,8 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 */
 
 ros::Publisher arm_pub;
+ros::Subscriber joint_sub;
 
-int setValeurPoint(trajectory_msgs::JointTrajectory* trajectoire,int pos_tab, int val);
 
 int main(int argc, char* argv[]) {
 
@@ -169,20 +193,32 @@ int main(int argc, char* argv[]) {
   std::string depthTopic   = "/camera/aligned_depth_to_color/image_raw";
   std::string camInfoTopic = "/camera/color/camera_info";
 #endif
-std::cout<<depthTopic<<std::endl;
+//std::cout<<depthTopic<<std::endl;
   const auto cameraReader = std::make_shared<CameraReader>(nh, colorTopic, depthTopic, camInfoTopic);
   calibrate(cameraReader);
 #if 1
-  //ros::AsyncSpinner spinner(1);
-  //spinner.start();
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
 
 
   //frame est le nom du rostopic dans lequelle rosOpenpose publie son msg
   ros::Subscriber counter1_sub = nh.subscribe("frame", 10, callbackRosOpenpose);
 
   arm_pub = nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/command",1);
+  joint_sub = nh.subscribe("/arm_controller/state", 10, callbackJointAngles);
 
-  ros::Rate loop_rate(10);
+
+  robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
+  robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
+  ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
+
+  robot_state::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
+  kinematic_state->setToDefaultValues();
+  const robot_state::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("manipulator");
+  const std::vector<std::string>& joint_names = joint_model_group->getVariableNames();
+
+
+
 
 
 
@@ -193,30 +229,93 @@ std::cout<<depthTopic<<std::endl;
   traj.points.resize(1);
 
   traj.points[0].positions.resize(6);
+  //Time to get the current angle Values
+  ros::Duration(2.0).sleep();
+  kinematic_state->setJointGroupPositions(joint_model_group, jointAngles);
+  for (std::size_t i = 0; i < joint_names.size(); ++i)
+  {
+    traj.joint_names[i] = joint_names[i].c_str();
+    traj.points[0].positions[i] = jointAngles[i];
+    ROS_INFO("Joint %s: %f", joint_names[i].c_str(), traj.points[0].positions[i]);
+  }
 
-  traj.joint_names[0] = "shoulder_pan_joint";
-  traj.joint_names[1] = "shoulder_lift_joint";
-  traj.joint_names[2] = "elbow_joint";
-  traj.joint_names[3] = "wrist_1_joint";
-  traj.joint_names[4] = "wrist_2_joint";
-  traj.joint_names[5] = "wrist_3_joint";
-
-
+  //Weights to avoid oscillations
+  double weights[6] = {0.15,0.15,0.15,0.05,0.01,0.01};
+  double old_pos[3] = {};
+  double diff[3] = {};
+  double tableDiff[3] = {};
+  double wrist_pos[3] = {};
+  //double filtered_wrist_pos[3] = {}
+  double pos_error[3] = {};
+  bool first_step = true;
   while (ros::ok()){
-    traj.header.stamp = ros::Time::now();
-    traj.points[0].positions[0] += 0.05;
-    traj.points[0].positions[1] = 0.0;
-    traj.points[0].positions[2] = 0.0;
-    traj.points[0].positions[3] = 0.0;
-    traj.points[0].positions[4] = 0.0;
-    traj.points[0].positions[5] = 0.0;
 
-    traj.points[0].time_from_start = ros::Duration(1);
+    if (!isnan(pos[0])) {
+      double q[6] = {traj.points[0].positions[0],traj.points[0].positions[1],
+                     traj.points[0].positions[2],traj.points[0].positions[3],
+                     traj.points[0].positions[4],traj.points[0].positions[5]};
+      double* T = new double[16];
+      ur_kinematics::forward(q, T);
 
-    arm_pub.publish(traj);
+
+      //{0.2,0.2,0.5};
+
+      double ee_pos[3] = {T[3],T[7],T[11]};
+
+      //Maybe We'll need to use a Mutex
+      diff[0] = pos[0] - old_pos[0];
+      diff[1] = pos[1] - old_pos[1];
+      diff[2] = pos[2] - old_pos[2];
+      toTable(diff, tableDiff);
+      //+1 Step
+      old_pos[0] = pos[0];
+      old_pos[1] = pos[1];
+      old_pos[2] = pos[2];
+      if (first_step){
+        wrist_pos[0] = ee_pos[0];
+        wrist_pos[1] = ee_pos[1];
+        wrist_pos[2] = ee_pos[2];
+        first_step = false;
+      }else{
+        wrist_pos[0] += tableDiff[0];
+        wrist_pos[1] += tableDiff[1];
+        wrist_pos[2] += tableDiff[2];
+        //Need to implement a PID to erase noise
+      }
+
+      pos_error[0] =  wrist_pos[0] - ee_pos[0];
+      pos_error[1] =  wrist_pos[1] - ee_pos[1];
+      pos_error[2] =  wrist_pos[2] - ee_pos[2];
+      //std::cout<<"pos_error[0]"<<pos_error[0]<<"pos_error[1]"<<pos_error[1]<<"pos_error[2]"<<pos_error[2]<<std::endl;
+
+
+
+
+      Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
+      Eigen::MatrixXd jacobian;
+      kinematic_state->getJacobian(joint_model_group,
+                                 kinematic_state->getLinkModel(joint_model_group->getLinkModelNames().back()),
+                                 reference_point_position, jacobian);
+
+
+      double delta_q[6] = {};
+      for (int i = 0; i<6; i++){
+          delta_q[i] = jacobian(i*6)*pos_error[0]+jacobian(i*6+1)*pos_error[1]+jacobian(i*6+2)*pos_error[2];
+      }
+
+      traj.header.stamp = ros::Time::now();
+      for (int i=0; i<6; i++){
+        traj.points[0].positions[i] += weights[i]*delta_q[i];
+      }
+      //Maybe Useless but need to check after direct control
+      kinematic_state->setJointGroupPositions(joint_model_group, traj.points[0].positions);
+
+      traj.points[0].time_from_start = ros::Duration(1);
+
+      arm_pub.publish(traj);
+    }
     ros::spinOnce();
 
-    loop_rate.sleep();
 	}
 #endif
 }
