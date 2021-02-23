@@ -31,7 +31,8 @@
 
 
 
-double pos[3] = {};
+double pos_wrist[3] = {};
+double pos_elbow[3] = {};
 double jointAngles[6] = {};
 double camera2table[9] = {};
 
@@ -55,12 +56,16 @@ void callbackRosOpenpose(const ros_openpose::Frame msg){
   //ROS_INFO pour communiquer avec classe dans le cmd
   //ROS_INFO("%f", msg.persons[0].bodyParts[4].point.z);
   if (msg.persons.size() > 0) {
-    pos[0] = msg.persons[0].bodyParts[4].point.x;
-    pos[1] = msg.persons[0].bodyParts[4].point.y;
-    pos[2] = msg.persons[0].bodyParts[4].point.z;
+    pos_wrist[0] = msg.persons[0].bodyParts[4].point.x;
+    pos_wrist[1] = msg.persons[0].bodyParts[4].point.y;
+    pos_wrist[2] = msg.persons[0].bodyParts[4].point.z;
+    pos_elbow[0] = msg.persons[0].bodyParts[3].point.x;
+    pos_elbow[1] = msg.persons[0].bodyParts[3].point.y;
+    pos_elbow[2] = msg.persons[0].bodyParts[3].point.z;
+
   }
   else
-    pos[0] = nanf("0");
+    pos_wrist[0] = nanf("0");
   //bodyParts[4] correspond au poignet droit
   //point correspond au coordonnées 3D du bodyPart
 }
@@ -69,7 +74,7 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
 
   ros::Rate loopRate(10);
   bool calibrated = false;
-  while (ros::ok()  && !calibrated)
+  while (ros::ok() && !calibrated)
   {
     auto colorImage = readers->getColorFrame();
     auto depthImage = readers->getDepthFrame();
@@ -241,16 +246,22 @@ int main(int argc, char* argv[]) {
 
   //Weights to avoid oscillations
   double weights[6] = {0.15,0.15,0.15,0.05,0.01,0.01};
-  double old_pos[3] = {};
-  double diff[3] = {};
-  double tableDiff[3] = {};
+  double old_pos_wrist[3] = {};
+  double diff_wrist[3] = {};
+  double tableDiff_wrist[3] = {};
   double wrist_pos[3] = {};
   //double filtered_wrist_pos[3] = {}
-  double pos_error[3] = {};
+  double wrist_pos_error[3] = {};
+
+  double dir_wrist_elbow[3] = {};
+  double tableDiff_dir_wrist_elbow[3] = {};
+
+
+
   bool first_step = true;
   while (ros::ok()){
 
-    if (!isnan(pos[0])) {
+    if (!isnan(pos_wrist[0])) {
       double q[6] = {traj.points[0].positions[0],traj.points[0].positions[1],
                      traj.points[0].positions[2],traj.points[0].positions[3],
                      traj.points[0].positions[4],traj.points[0].positions[5]};
@@ -263,29 +274,48 @@ int main(int argc, char* argv[]) {
       double ee_pos[3] = {T[3],T[7],T[11]};
 
       //Maybe We'll need to use a Mutex
-      diff[0] = pos[0] - old_pos[0];
-      diff[1] = pos[1] - old_pos[1];
-      diff[2] = pos[2] - old_pos[2];
-      toTable(diff, tableDiff);
+      diff_wrist[0] = pos_wrist[0] - old_pos_wrist[0];
+      diff_wrist[1] = pos_wrist[1] - old_pos_wrist[1];
+      diff_wrist[2] = pos_wrist[2] - old_pos_wrist[2];
+      toTable(diff_wrist, tableDiff_wrist);
+
+
+      dir_wrist_elbow[0] = pos_wrist[0] - pos_elbow[0];
+      dir_wrist_elbow[1] = pos_wrist[1] - pos_elbow[1];
+      dir_wrist_elbow[2] = pos_wrist[2] - pos_elbow[2];
+      toTable(dir_wrist_elbow, tableDiff_dir_wrist_elbow);
+
+      double norm_wrist_elbow = sqrtf((powf(tableDiff_dir_wrist_elbow[0],2)+powf(tableDiff_dir_wrist_elbow[1],2)+powf(tableDiff_dir_wrist_elbow[2],2)));
+
+      tableDiff_dir_wrist_elbow[0] = tableDiff_dir_wrist_elbow[0]/norm_wrist_elbow;
+      tableDiff_dir_wrist_elbow[1] = tableDiff_dir_wrist_elbow[1]/norm_wrist_elbow;
+      tableDiff_dir_wrist_elbow[2] = tableDiff_dir_wrist_elbow[2]/norm_wrist_elbow;
+      //std::cout<<"dir_wrist_elbow[0]"<<int(tableDiff_dir_wrist_elbow[0]*100)/100.0<<" ; dir_wrist_elbow[1]"<<int(tableDiff_dir_wrist_elbow[1]*100)/100.<<" ; dir_wrist_elbow[2]"<<int(tableDiff_dir_wrist_elbow[2]*100)/100.<<std::endl;
+
       //+1 Step
-      old_pos[0] = pos[0];
-      old_pos[1] = pos[1];
-      old_pos[2] = pos[2];
+      old_pos_wrist[0] = pos_wrist[0];
+      old_pos_wrist[1] = pos_wrist[1];
+      old_pos_wrist[2] = pos_wrist[2];
+
+
+
+
+
       if (first_step){
         wrist_pos[0] = ee_pos[0];
         wrist_pos[1] = ee_pos[1];
         wrist_pos[2] = ee_pos[2];
         first_step = false;
       }else{
-        wrist_pos[0] += tableDiff[0];
-        wrist_pos[1] += tableDiff[1];
-        wrist_pos[2] += tableDiff[2];
+        wrist_pos[0] += tableDiff_wrist[0];
+        wrist_pos[1] += tableDiff_wrist[1];
+        wrist_pos[2] += tableDiff_wrist[2];
         //Need to implement a PID to erase noise
       }
 
-      pos_error[0] =  wrist_pos[0] - ee_pos[0];
-      pos_error[1] =  wrist_pos[1] - ee_pos[1];
-      pos_error[2] =  wrist_pos[2] - ee_pos[2];
+      wrist_pos_error[0] =  wrist_pos[0] - ee_pos[0];
+      wrist_pos_error[1] =  wrist_pos[1] - ee_pos[1];
+      wrist_pos_error[2] =  wrist_pos[2] - ee_pos[2];
       //std::cout<<"pos_error[0]"<<pos_error[0]<<"pos_error[1]"<<pos_error[1]<<"pos_error[2]"<<pos_error[2]<<std::endl;
 
 
@@ -300,7 +330,7 @@ int main(int argc, char* argv[]) {
 
       double delta_q[6] = {};
       for (int i = 0; i<6; i++){
-          delta_q[i] = jacobian(i*6)*pos_error[0]+jacobian(i*6+1)*pos_error[1]+jacobian(i*6+2)*pos_error[2];
+          delta_q[i] = jacobian(i*6)*wrist_pos_error[0]+jacobian(i*6+1)*wrist_pos_error[1]+jacobian(i*6+2)*wrist_pos_error[2];
       }
 
       traj.header.stamp = ros::Time::now();
