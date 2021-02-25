@@ -15,6 +15,7 @@
 #include <control_msgs/JointTrajectoryControllerState.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <math.h>
+#include <ctime>
 
 #include <ur_kinematics/ur_kin.h>
 
@@ -73,80 +74,107 @@ void callbackRosOpenpose(const ros_openpose::Frame msg){
 void calibrate(std::shared_ptr<CameraReader> readers) {
 
   ros::Rate loopRate(10);
-  bool calibrated = false;
-  while (ros::ok() && !calibrated)
+  bool planeCalibrated = false;
+  bool done = false;
+  time_t calibrationTime;
+  PlaneDetection plane_detection;
+  while (ros::ok() && !done)
   {
-    auto colorImage = readers->getColorFrame();
-    auto depthImage = readers->getDepthFrame();
-    if (!depthImage.empty() && !colorImage.empty()) {
-
-
-      depthImage.convertTo(depthImage, CV_16U, 55535);
-
-      PlaneDetection plane_detection;
-      plane_detection.readDepthImage(depthImage);
-    	plane_detection.readColorImage(colorImage);
-    	plane_detection.runPlaneDetection();
-      cv::imshow("depthImage", depthImage);
+    if (planeCalibrated) {
       cv::imshow("Seg image", plane_detection.seg_img_);
+      float left = 10 - (time(NULL) - calibrationTime); // Wait 10 seconds before start
+      if (left < 0.) {
+        double arm_axis[3] = {};
+        arm_axis[0] = pos_wrist[0] - pos_elbow[0];
+        arm_axis[1] = pos_wrist[1] - pos_elbow[1];
+        arm_axis[2] = pos_wrist[2] - pos_elbow[2];
 
-      plane_detection.computePlaneSumStats(false);
-      int i, max = -1, idMax = -1;
-      for (i=0; i<plane_detection.plane_pixel_nums_.size(); i++) {
-        if (plane_detection.plane_pixel_nums_[i] > max) {
-          max = plane_detection.plane_pixel_nums_[i];
-          idMax = i;
-        }
-      }
+        /*std::cout << "camera2table : " << camera2table[2] << " " << camera2table[5] << " " << camera2table[8] << " " << std::endl;
+        std::cout << "pos_wrist : " << pos_wrist[0] << " " << pos_wrist[1] << " " << pos_wrist[2] << " " << std::endl;
+        std::cout << "pos_elbow : " << pos_elbow[0] << " " << pos_elbow[1] << " " << pos_elbow[2] << " " << std::endl;
+        std::cout << "arm_axis : " << arm_axis[0] << " " << arm_axis[1] << " " << arm_axis[2] << " " << std::endl;*/
 
-      std::cout<<"number of planes detected : "<<plane_detection.plane_num_<<std::endl;
-      if (idMax >= 0) {
-        std::cout << "biggest plane index : " << idMax << std::endl;
-        std::cout << "biggest plane size  : " << max << std::endl;
-        int vidx = plane_detection.plane_vertices_[idMax][0];
-        cv::Vec3b c = plane_detection.seg_img_.at<cv::Vec3b>(vidx / kDepthWidth, vidx % kDepthWidth);
-        std::cout << "biggest plane color : "
-          << int(c.val[2]) << " "
-          << int(c.val[1]) << " "
-          << int(c.val[0]) << " " << std::endl; // OpenCV uses BGR by default
-        std::cout << "biggest plane normal : "
-          << plane_detection.plane_filter.extractedPlanes[idMax]->normal[0] << " "
-          << plane_detection.plane_filter.extractedPlanes[idMax]->normal[1] << " "
-          << plane_detection.plane_filter.extractedPlanes[idMax]->normal[2] << " " << std::endl;
-        std::cout << "biggest plane center : "
-          << plane_detection.plane_filter.extractedPlanes[idMax]->center[0] << " "
-          << plane_detection.plane_filter.extractedPlanes[idMax]->center[1] << " "
-          << plane_detection.plane_filter.extractedPlanes[idMax]->center[2] << " " << std::endl;
+        // project arm axis on plane
+        double proj = arm_axis[0] * camera2table[2] + arm_axis[1] * camera2table[5] + arm_axis[2] * camera2table[8];
+        arm_axis[0] -= proj * camera2table[2];
+        arm_axis[1] -= proj * camera2table[5];
+        arm_axis[2] -= proj * camera2table[6];
+        double norm = sqrtf(arm_axis[0] * arm_axis[0] + arm_axis[1] * arm_axis[1] + arm_axis[2] * arm_axis[2]);
 
-        //Vecteur Z
-        camera2table[2] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[0];
-        camera2table[5] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[1];
-        camera2table[8] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[2];
+        // Table X vector
+        camera2table[0] = arm_axis[0] / norm;
+        camera2table[3] = arm_axis[1] / norm;
+        camera2table[6] = arm_axis[2] / norm;
+        //std::cout << "arm_axis : " << camera2table[0] << " " << camera2table[3] << " " << camera2table[6] << " " << std::endl;
 
-        // VEcteur X
-        camera2table[0] = camera2table[5];
-        camera2table[3] = camera2table[2];
-        camera2table[6] = - 2.0*camera2table[0]*camera2table[3]/camera2table[8];
-        double norm = sqrtf((powf(camera2table[0],2)+powf(camera2table[3],2)+powf(camera2table[6],2)));
-        camera2table[0] /= norm;
-        camera2table[3] /= norm;
-        camera2table[6] /= norm;
-
-        //Vecteur Y
+        // Table Y vector
         camera2table[1] = camera2table[5]*camera2table[6] - camera2table[8]*camera2table[3];
         camera2table[4] = camera2table[8]*camera2table[0] - camera2table[2]*camera2table[6];
         camera2table[7] = camera2table[2]*camera2table[3] - camera2table[5]*camera2table[0];
 
-        calibrated = true;
+        done = true;
       }
+      else
+        std::cout << "Your arm's position will be scanned in " << left << " seconds, say in init position" << std::endl;
     }
-    else
-      // display the error at most once per 10 seconds
-      ROS_WARN_THROTTLE(10, "Empty depth image frame detected. Ignoring...");
-    int key = cv::waitKey(1) & 255;
+    else {
+      auto colorImage = readers->getColorFrame();
+      auto depthImage = readers->getDepthFrame();
+      if (!depthImage.empty() && !colorImage.empty()) {
+        depthImage.convertTo(depthImage, CV_16U, 55535);
+
+        plane_detection.readDepthImage(depthImage);
+      	plane_detection.readColorImage(colorImage);
+      	plane_detection.runPlaneDetection();
+        cv::imshow("depthImage", depthImage);
+        cv::imshow("Seg image", plane_detection.seg_img_);
+
+        plane_detection.computePlaneSumStats(false);
+        int i, max = -1, idMax = -1;
+        for (i=0; i<plane_detection.plane_pixel_nums_.size(); i++) {
+          if (plane_detection.plane_pixel_nums_[i] > max) {
+            max = plane_detection.plane_pixel_nums_[i];
+            idMax = i;
+          }
+        }
+
+        std::cout<<"number of planes detected : "<<plane_detection.plane_num_<<std::endl;
+        if (idMax >= 0) {
+          /*std::cout << "biggest plane index : " << idMax << std::endl;
+          std::cout << "biggest plane size  : " << max << std::endl;
+          int vidx = plane_detection.plane_vertices_[idMax][0];
+          cv::Vec3b c = plane_detection.seg_img_.at<cv::Vec3b>(vidx / kDepthWidth, vidx % kDepthWidth);
+          std::cout << "biggest plane color : "
+            << int(c.val[2]) << " "
+            << int(c.val[1]) << " "
+            << int(c.val[0]) << " " << std::endl; // OpenCV uses BGR by default
+          std::cout << "biggest plane normal : "
+            << plane_detection.plane_filter.extractedPlanes[idMax]->normal[0] << " "
+            << plane_detection.plane_filter.extractedPlanes[idMax]->normal[1] << " "
+            << plane_detection.plane_filter.extractedPlanes[idMax]->normal[2] << " " << std::endl;
+          std::cout << "biggest plane center : "
+            << plane_detection.plane_filter.extractedPlanes[idMax]->center[0] << " "
+            << plane_detection.plane_filter.extractedPlanes[idMax]->center[1] << " "
+            << plane_detection.plane_filter.extractedPlanes[idMax]->center[2] << " " << std::endl;*/
+
+          //Vecteur Z
+          camera2table[2] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[0];
+          camera2table[5] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[1];
+          camera2table[8] = plane_detection.plane_filter.extractedPlanes[idMax]->normal[2];
+
+          planeCalibrated = true;
+          calibrationTime = time(NULL);
+        }
+      }
+      else
+        // display the error at most once per 10 seconds
+        ROS_WARN_THROTTLE(10, "Empty depth image frame detected. Ignoring...");
+    }
+
+  /*int key = cv::waitKey(1) & 255;
     if (key == 27)  // escape key
       break;
-
+      */
     ros::spinOnce();
     loopRate.sleep();
   }
@@ -198,7 +226,9 @@ int main(int argc, char* argv[]) {
   std::string depthTopic   = "/camera/aligned_depth_to_color/image_raw";
   std::string camInfoTopic = "/camera/color/camera_info";
 #endif
-//std::cout<<depthTopic<<std::endl;
+  //frame est le nom du rostopic dans lequelle rosOpenpose publie son msg
+  ros::Subscriber counter1_sub = nh.subscribe("frame", 10, callbackRosOpenpose);
+
   const auto cameraReader = std::make_shared<CameraReader>(nh, colorTopic, depthTopic, camInfoTopic);
   calibrate(cameraReader);
 #if 1
@@ -206,8 +236,6 @@ int main(int argc, char* argv[]) {
   spinner.start();
 
 
-  //frame est le nom du rostopic dans lequelle rosOpenpose publie son msg
-  ros::Subscriber counter1_sub = nh.subscribe("frame", 10, callbackRosOpenpose);
 
   arm_pub = nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/command",1);
   joint_sub = nh.subscribe("/arm_controller/state", 10, callbackJointAngles);
