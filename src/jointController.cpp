@@ -24,7 +24,7 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
 
-
+#include <chrono>
 
 #define USE_KINECT
 
@@ -82,7 +82,7 @@ void calibrate(std::shared_ptr<CameraReader> readers) {
   {
     if (planeCalibrated) {
       cv::imshow("Seg image", plane_detection.seg_img_);
-      float left = 10 - (time(NULL) - calibrationTime); // Wait 10 seconds before start
+      float left = 5 - (time(NULL) - calibrationTime); // Wait 10 seconds before start
       if (left < 0.) {
         double arm_axis[3] = {};
         arm_axis[0] = pos_wrist[0] - pos_elbow[0];
@@ -211,6 +211,9 @@ ros::Subscriber joint_sub;
 
 int main(int argc, char* argv[]) {
 
+  using std::chrono::high_resolution_clock;
+  using std::chrono::duration;
+
   ros::init(argc, argv, "Joint State Publisher");
   ros::NodeHandle nh;
 
@@ -273,13 +276,13 @@ int main(int argc, char* argv[]) {
   }
 
   //Weights to avoid oscillations
-  double weights[6] = {0.15,0.15,0.15,0.05,0.01,0.01};
+  Eigen::VectorXd weights(6);
+  weights << 0.15,0.15,0.15,0.05,0.01,0.01;
   double old_pos_wrist[3] = {};
   double diff_wrist[3] = {};
   double tableDiff_wrist[3] = {};
   double wrist_pos[3] = {};
-  //double filtered_wrist_pos[3] = {}
-  double wrist_pos_error[3] = {};
+  Eigen::Vector3d wrist_pos_error;
 
   double dir_wrist_elbow[3] = {};
   double tableDiff_dir_wrist_elbow[3] = {};
@@ -287,6 +290,8 @@ int main(int argc, char* argv[]) {
 
 
   bool first_step = true;
+  auto t1 = high_resolution_clock::now();
+
   while (ros::ok()){
 
     if (!isnan(pos_wrist[0])) {
@@ -341,9 +346,9 @@ int main(int argc, char* argv[]) {
         //Need to implement a PID to erase noise
       }
 
-      wrist_pos_error[0] =  wrist_pos[0] - ee_pos[0];
-      wrist_pos_error[1] =  wrist_pos[1] - ee_pos[1];
-      wrist_pos_error[2] =  wrist_pos[2] - ee_pos[2];
+      wrist_pos_error(0) =  wrist_pos[0] - ee_pos[0];
+      wrist_pos_error(1) =  wrist_pos[1] - ee_pos[1];
+      wrist_pos_error(2) =  wrist_pos[2] - ee_pos[2];
       //std::cout<<"pos_error[0]"<<pos_error[0]<<"pos_error[1]"<<pos_error[1]<<"pos_error[2]"<<pos_error[2]<<std::endl;
 
 
@@ -356,14 +361,37 @@ int main(int argc, char* argv[]) {
                                  reference_point_position, jacobian);
 
 
-      double delta_q[6] = {};
-      for (int i = 0; i<6; i++){
-          delta_q[i] = jacobian(i*6)*wrist_pos_error[0]+jacobian(i*6+1)*wrist_pos_error[1]+jacobian(i*6+2)*wrist_pos_error[2];
+
+      Eigen::MatrixXd J(3,6);//There is a function to do that best using Eigen
+      for (int i = 0; i<3; i++){
+        for (int j = 0; j<6; j++){
+          J(i,j) = jacobian(i,j);
+        }
       }
+      Eigen::MatrixXd JJT = J * J.transpose();
+      Eigen::MatrixXd pinvJ = J.transpose() * JJT.inverse();
+      Eigen::MatrixXd identity6;
+      identity6.setIdentity(6,6);
+      Eigen::MatrixXd N = identity6 - pinvJ * J;
+
+      //std::cout<<"N : \n"<<N<<std::endl;
+
+      Eigen::VectorXd nullQ(6);
+      for (int i = 0; i < 6; i++) {
+        nullQ(i) = 0.0 - traj.points[0].positions[i]; //replace 0.0 by the angle of interest
+      }                                               //Could try with by default angles
+
+
+      auto t2 = t1;
+      t1 = high_resolution_clock::now();
+      duration<double, std::micro> ms_double = t1 - t2;
+      double dt = ms_double.count()*1e-6;
+      Eigen::VectorXd delta_q = pinvJ*wrist_pos_error*dt + N*nullQ;
+
 
       traj.header.stamp = ros::Time::now();
       for (int i=0; i<6; i++){
-        traj.points[0].positions[i] += weights[i]*delta_q[i];
+        traj.points[0].positions[i] += delta_q(i); //weights(i)*delta_q(i);
       }
       //Maybe Useless but need to check after direct control
       kinematic_state->setJointGroupPositions(joint_model_group, traj.points[0].positions);
