@@ -286,7 +286,7 @@ int main(int argc, char* argv[]) {
 
   double dir_wrist_elbow[3] = {};
   double tableDiff_dir_wrist_elbow[3] = {};
-
+  Eigen::Vector3d unit_wrist_elbow;
 
 
   bool first_step = true;
@@ -320,9 +320,9 @@ int main(int argc, char* argv[]) {
 
       double norm_wrist_elbow = sqrtf((powf(tableDiff_dir_wrist_elbow[0],2)+powf(tableDiff_dir_wrist_elbow[1],2)+powf(tableDiff_dir_wrist_elbow[2],2)));
 
-      tableDiff_dir_wrist_elbow[0] = tableDiff_dir_wrist_elbow[0]/norm_wrist_elbow;
-      tableDiff_dir_wrist_elbow[1] = tableDiff_dir_wrist_elbow[1]/norm_wrist_elbow;
-      tableDiff_dir_wrist_elbow[2] = tableDiff_dir_wrist_elbow[2]/norm_wrist_elbow;
+      unit_wrist_elbow(0) = tableDiff_dir_wrist_elbow[0]/norm_wrist_elbow;
+      unit_wrist_elbow(1) = tableDiff_dir_wrist_elbow[1]/norm_wrist_elbow;
+      unit_wrist_elbow(2) = tableDiff_dir_wrist_elbow[2]/norm_wrist_elbow;
       //std::cout<<"dir_wrist_elbow[0]"<<int(tableDiff_dir_wrist_elbow[0]*100)/100.0<<" ; dir_wrist_elbow[1]"<<int(tableDiff_dir_wrist_elbow[1]*100)/100.<<" ; dir_wrist_elbow[2]"<<int(tableDiff_dir_wrist_elbow[2]*100)/100.<<std::endl;
 
       //+1 Step
@@ -362,31 +362,135 @@ int main(int argc, char* argv[]) {
 
 
 
-      Eigen::MatrixXd J(3,6);//There is a function to do that best using Eigen
+
+      Eigen::MatrixXd JPosition(3,6);//There is a function to do that best using Eigen
+      Eigen::MatrixXd JOrientation(3,6);
       for (int i = 0; i<3; i++){
         for (int j = 0; j<6; j++){
-          J(i,j) = jacobian(i,j);
+          JPosition(i,j) = jacobian(i,j);
+          JOrientation(i,j) = jacobian(i+3,j);
         }
       }
-      Eigen::MatrixXd JJT = J * J.transpose();
-      Eigen::MatrixXd pinvJ = J.transpose() * JJT.inverse();
+      Eigen::MatrixXd JJTPosition = JPosition * JPosition.transpose();
+      Eigen::MatrixXd pinvJPosition = JPosition.transpose() * JJTPosition.inverse();
+      Eigen::MatrixXd JJTOrientation = JOrientation * JOrientation.transpose();
+      Eigen::MatrixXd pinvJOrientation = JOrientation.transpose() * JJTOrientation.inverse();
+
+
+      Eigen::Matrix3d ee_orientation(3,3);
+      for (int i = 0; i<3; i++){
+        for (int j = 0; j<3; j++){
+          ee_orientation(i,j) = T[j +i*4];
+        }
+      }
+      Eigen::Vector3d u;
+      u(0) = T[2];
+      u(1) = T[6];
+      u(2) = T[10];
+
+
+      Eigen::Vector3d n = u.cross(unit_wrist_elbow);
+      double alpha = acos(u.dot(unit_wrist_elbow));
+      //std::cout<<"u : \n"<<u<<std::endl;
+      //std::cout<<"v : \n"<<unit_wrist_elbow<<std::endl;
+      //std::cout<<"alpha : \n"<<alpha<<std::endl;
+      //std::cout<<"n : \n"<<n<<std::endl;
+
+      Eigen::Quaterniond quat_inter(cos(alpha/2), n(0)*sin(alpha/2), n(1)*sin(alpha/2), n(2)*sin(alpha/2));
+      Eigen::Quaterniond quat_robot;
+      quat_robot = ee_orientation;
+      Eigen::Matrix4d quat_inter_matrix;
+      quat_inter_matrix << quat_inter.w(), -quat_inter.vec()(0), -quat_inter.vec()(1), -quat_inter.vec()(2),
+                           quat_inter.vec()(0), quat_inter.w(), -quat_inter.vec()(2), quat_inter.vec()(1),
+                           quat_inter.vec()(1), quat_inter.vec()(2), quat_inter.w(), -quat_inter.vec()(0),
+                           quat_inter.vec()(2), -quat_inter.vec()(1), quat_inter.vec()(0), quat_inter.w();
+
+      Eigen::Vector4d quat_robot_mat(quat_robot.w(), quat_robot.vec()(0),quat_robot.vec()(1),quat_robot.vec()(2));
+      Eigen::VectorXd quat_des_mat = quat_inter_matrix*quat_robot_mat;
+      Eigen::Quaterniond quat_des;
+      quat_des.w() = quat_des_mat(0);
+      quat_des.vec() <<quat_des_mat(1),quat_des_mat(2),quat_des_mat(3);
+      //std::cout<<"quat_robot : \n"<<quat_robot.w()<<" \n"<<quat_robot.vec()<<std::endl;
+      //std::cout<<"quat_inter : \n"<<quat_inter.w()<<" \n"<<quat_inter.vec()<<std::endl;
+      //std::cout<<"quat_des : \n"<<quat_des.w()<<" \n"<<quat_des.vec()<<std::endl;
+      //Eigen::Quaterniond quat_robot_conj;
+      //quat_robot_conj.w() = quat_robot.w();=
+      //quat_robot_conj.vec() = quat_robot.vec();
+      //std::cout<<"quat_robot_conj : \n"<<quat_robot_conj.w()<<" \n"<<quat_robot_conj.vec()<<std::endl;
+
+      //Now we go back to the Euler space to find the orientation error
+      Eigen::Matrix4d quat_des_matrix;
+
+      Eigen::Vector3d angular_error;
+      Eigen::Vector4d quat_robot_mat_conj(quat_robot.w(), -quat_robot.vec()(0),-quat_robot.vec()(1),-quat_robot.vec()(2));
+      Eigen::VectorXd quat_for_log = quat_des_matrix.transpose()*quat_robot_mat_conj;
+      quat_for_log = quat_for_log / quat_for_log.norm();
+
+      if(quat_des.vec().norm()<1e-6){
+        quat_des_matrix.setIdentity(4,4);
+      }else{
+        quat_des_matrix << quat_des.w(), -quat_des.vec()(0), -quat_des.vec()(1), -quat_des.vec()(2),
+                           quat_des.vec()(0), quat_des.w(), -quat_des.vec()(2), quat_des.vec()(1),
+                           quat_des.vec()(1), quat_des.vec()(2), quat_des.w(), -quat_des.vec()(0),
+                           quat_des.vec()(2), -quat_des.vec()(1), quat_des.vec()(0), quat_des.w();
+      }
+      if(abs(1.0 - quat_for_log(0))<1e-16){
+        angular_error << 0.0,0.0,0.0;
+      }
+      else{
+        double acosx;
+        if(quat_for_log(0)>=1.0){
+          quat_for_log(0) = 1.0;
+        }
+        if(quat_for_log(0)<=-1.0){
+          quat_for_log(0) = -1.0;
+        }
+        if(quat_for_log(0)>=-1.0 and quat_for_log(0)<0.0){
+           acosx = acos(quat_for_log(0)) - M_PI;
+        }else{
+          acosx = acos(quat_for_log(0));
+        }
+
+        double scale = acosx/sqrt(1.0-quat_for_log(0)*quat_for_log(0));
+        angular_error << 2*quat_for_log(1)*scale, 2*quat_for_log(2)*scale, 2*quat_for_log(3)*scale;
+      }
+      //std::cout<<"angular_error : \n"<<angular_error<<std::endl;
+
+      //Eigen::VectorXd dir_angle_error =
+
+
+
+      // std::cout<<"T "<<std::endl;
+      // for(int i=0;i<4;i++) {
+      //   for(int j=i*4;j<(i+1)*4;j++)
+      //     printf("%1.3f ", T[j]);
+      //   printf("\n");
+      //   }
+
+
+
+
+
       Eigen::MatrixXd identity6;
       identity6.setIdentity(6,6);
-      Eigen::MatrixXd N = identity6 - pinvJ * J;
+      Eigen::MatrixXd N = identity6 - pinvJPosition * JPosition;
 
       //std::cout<<"N : \n"<<N<<std::endl;
+      auto t2 = t1;
+      t1 = high_resolution_clock::now();
+      duration<double, std::micro> ms_double = t1 - t2;
+      double dt = ms_double.count()*1e-6;
+
+      //std::cout<<"pinvJOrientation*angular_error : \n"<<pinvJOrientation*angular_error*dt<<std::endl;
 
       Eigen::VectorXd nullQ(6);
+      Eigen::VectorXd phill = pinvJOrientation*angular_error;
       for (int i = 0; i < 6; i++) {
         nullQ(i) = 0.0 - traj.points[0].positions[i]; //replace 0.0 by the angle of interest
       }                                               //Could try with by default angles
 
 
-      auto t2 = t1;
-      t1 = high_resolution_clock::now();
-      duration<double, std::micro> ms_double = t1 - t2;
-      double dt = ms_double.count()*1e-6;
-      Eigen::VectorXd delta_q = pinvJ*wrist_pos_error*dt + N*nullQ;
+      Eigen::VectorXd delta_q = pinvJPosition*wrist_pos_error*dt + N*nullQ;//*pinvJOrientation*angular_error*dt ;//N*nullQ;
 
 
       traj.header.stamp = ros::Time::now();
