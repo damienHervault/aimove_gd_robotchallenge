@@ -1,12 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-  <!-- startup ur gazebo -->
-  <!-- TODO choose  ur3 or ur3_joint_limited ? -->
+  <!--arg name="world_name" value="$(find aimove_gd_robotchallenge)/worlds/simulation.world"/-->
   <include file="$(find ur_gazebo)/launch/ur3_joint_limited.launch">
   </include>
-
-  <param name="env_description" command="cat '$(find aimove_gd_robotchallenge)/urdf/env.urdf'" />
-  <node name="env_spawn" pkg="gazebo_ros" type="spawn_model" output="screen"
-        args="-urdf -param env_description -model env" />
-
+  <!--include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find aimove_gd_robotchallenge)/worlds/simulation.world"/>
+  </include-->
 </launch>

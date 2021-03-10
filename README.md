@@ -19,3 +19,12 @@ Robotic arm realtime control from depth camera
 * https://github.com/Seri-Lee/robotis_op3_following_motion
 * https://www.universal-robots.com/articles/ur/parameters-for-calculations-of-kinematics-and-dynamics/
 * https://github.com/robotology/human-gazebo
+
+
+roslaunch ros_openpose run.launch
+roslaunch ur3_moveit_config ur3_moveit_planning_execution.launch sim:=true
+roslaunch ur_gazebo ur3.launch
+roslaunch aimove_gd_robotchallenge joint_run.launch
+
+replace in universal_robot/ur_gazebo/launch/ur3.launch
+<arg name="world_name" default="$(find aimove_gd_robotchallenge)/worlds/simulation.world"/>
