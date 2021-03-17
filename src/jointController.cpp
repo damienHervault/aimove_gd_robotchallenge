@@ -282,6 +282,9 @@ int main(int argc, char* argv[]) {
   double diff_wrist[3] = {};
   double tableDiff_wrist[3] = {};
   double wrist_pos[3] = {};
+
+
+  int latest_in_pos = 0;
   Eigen::Vector3d wrist_pos_error;
 
   double dir_wrist_elbow[3] = {};
@@ -306,6 +309,8 @@ int main(int argc, char* argv[]) {
 
       double ee_pos[3] = {T[3],T[7],T[11]};
 
+
+
       //Maybe We'll need to use a Mutex
       diff_wrist[0] = pos_wrist[0] - old_pos_wrist[0];
       diff_wrist[1] = pos_wrist[1] - old_pos_wrist[1];
@@ -323,7 +328,7 @@ int main(int argc, char* argv[]) {
       unit_wrist_elbow(0) = tableDiff_dir_wrist_elbow[0]/norm_wrist_elbow;
       unit_wrist_elbow(1) = tableDiff_dir_wrist_elbow[1]/norm_wrist_elbow;
       unit_wrist_elbow(2) = tableDiff_dir_wrist_elbow[2]/norm_wrist_elbow;
-      //std::cout<<"dir_wrist_elbow[0]"<<int(tableDiff_dir_wrist_elbow[0]*100)/100.0<<" ; dir_wrist_elbow[1]"<<int(tableDiff_dir_wrist_elbow[1]*100)/100.<<" ; dir_wrist_elbow[2]"<<int(tableDiff_dir_wrist_elbow[2]*100)/100.<<std::endl;
+      //std::cout<<"dir_wrist_elbow[0]"<<int(unit_wrist_elbow(0)*100)/100.0<<" ; dir_wrist_elbow[1]"<<int(unit_wrist_elbow(1)*100)/100.<<" ; dir_wrist_elbow[2]"<<int(unit_wrist_elbow(2)*100)/100.<<std::endl;
 
       //+1 Step
       old_pos_wrist[0] = pos_wrist[0];
@@ -338,8 +343,12 @@ int main(int argc, char* argv[]) {
         wrist_pos[0] = ee_pos[0];
         wrist_pos[1] = ee_pos[1];
         wrist_pos[2] = ee_pos[2];
+
+
+
         first_step = false;
       }else{
+
         wrist_pos[0] += tableDiff_wrist[0];
         wrist_pos[1] += tableDiff_wrist[1];
         wrist_pos[2] += tableDiff_wrist[2];
@@ -381,12 +390,16 @@ int main(int argc, char* argv[]) {
       for (int i = 0; i<3; i++){
         for (int j = 0; j<3; j++){
           ee_orientation(i,j) = T[j +i*4];
+
         }
       }
+      //std::cout<<"ee_orientation : "<<ee_orientation<<std::endl;
       Eigen::Vector3d u;
-      u(0) = T[2];
-      u(1) = T[6];
-      u(2) = T[10];
+      u(0) = T[0];
+      u(1) = T[4];
+      u(2) = T[8];
+      //std::cout<<"u[0]"<<int(u(0)*100)/100.0<<" ; u[1]"<<int(u(1)*100)/100.<<" ; u[2]"<<int(u(2)*100)/100.<<std::endl;
+
 
 
       Eigen::Vector3d n = u.cross(unit_wrist_elbow);
@@ -452,7 +465,9 @@ int main(int argc, char* argv[]) {
         }
 
         double scale = acosx/sqrt(1.0-quat_for_log(0)*quat_for_log(0));
-        angular_error << 2*quat_for_log(1)*scale, 2*quat_for_log(2)*scale, 2*quat_for_log(3)*scale;
+        angular_error << 2.0*quat_for_log(1)*scale, 2.0*quat_for_log(2)*scale, 2.0*quat_for_log(3)*scale;
+        std::cout<<"angular_error: "<<angular_error(0)<<" ; "<<angular_error(1)<<" ; "<<angular_error(2)<<std::endl;
+        //angular_error << 0.0,0.0,0.0;
       }
       //std::cout<<"angular_error : \n"<<angular_error<<std::endl;
 
@@ -482,7 +497,7 @@ int main(int argc, char* argv[]) {
       double dt = ms_double.count()*1e-6;
 
       //std::cout<<"pinvJOrientation*angular_error : \n"<<pinvJOrientation*angular_error*dt<<std::endl;
-
+      //std::cout<<"pinvJOrientation*angular_error : \n"dt<<std::endl;
       Eigen::VectorXd nullQ(6);
       Eigen::VectorXd phill = pinvJOrientation*angular_error;
       for (int i = 0; i < 6; i++) {
@@ -490,8 +505,13 @@ int main(int argc, char* argv[]) {
       }                                               //Could try with by default angles
 
 
-      Eigen::VectorXd delta_q = pinvJPosition*wrist_pos_error*dt + N*nullQ;//*pinvJOrientation*angular_error*dt ;//N*nullQ;
-
+      Eigen::VectorXd delta_q;
+      if(isnan(angular_error(0))  or isnan(angular_error(1)) or isnan(angular_error(2))){//Why does NaN happend?
+        delta_q = pinvJPosition*wrist_pos_error*dt;
+      }else{
+        //delta_q = pinvJPosition*wrist_pos_error*dt + N*nullQ;//To keep in second track the initial joint angles
+        delta_q = pinvJPosition*wrist_pos_error*dt + N*pinvJOrientation*angular_error*dt*10.0;
+      }
 
       traj.header.stamp = ros::Time::now();
       for (int i=0; i<6; i++){
