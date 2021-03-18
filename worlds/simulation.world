@@ -61,6 +61,53 @@
         <kinematic>0</kinematic>
       </link>
     </model>
+
+    <model name='wrist_point'>
+      <link name='link'>
+        <visual name='visual'>
+          <cast_shadows>0</cast_shadows>
+          <geometry>
+            <sphere>
+              <radius>.02</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Red</name>
+            </script>
+          </material>
+        </visual>
+        <gravity>0</gravity>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+    </model>
+
+    <model name='elbow_point'>
+      <link name='link'>
+        <visual name='visual'>
+          <cast_shadows>0</cast_shadows>
+          <geometry>
+            <sphere>
+              <radius>.02</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Orange</name>
+            </script>
+          </material>
+        </visual>
+        <gravity>0</gravity>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+    </model>
+
     <gravity>0 0 -9.8</gravity>
     <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
     <atmosphere type='adiabatic'/>
@@ -296,12 +343,32 @@
         </link>
       </model>
       <model name='table'>
-        <pose frame=''>0.64 0.0 -1.0 0 0 -1.5</pose>
+        <pose frame=''>0.64 0.0 -1.0 0 0 -1.57079632679</pose>
         <!--pose frame=''>0.629259 0.818825 0 0 -0 0</pose-->
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose frame=''>0.64 0.0 -1.0 0 0 -1.5</pose>
+          <pose frame=''>0.64 0.0 -1.0 0 0 -1.57079632679</pose>
           <!--pose frame=''>0.629259 0.818825 0 0 -0 0</pose-->
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='wrist_point'>
+        <pose frame=''>0.0 0.0 0.0 0 0 0.0</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>0.0 0.0 0.0 0 0 0.0</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='elbow_point'>
+        <pose frame=''>0.0 0.0 0.0 0 0 0.0</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>0.0 0.0 0.0 0 0 0.0</pose>
           <velocity>0 0 0 0 -0 0</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>

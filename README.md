@@ -27,4 +27,6 @@ roslaunch ur_gazebo ur3.launch
 roslaunch aimove_gd_robotchallenge joint_run.launch
 
 replace in universal_robot/ur_gazebo/launch/ur3.launch
+'''
 <arg name="world_name" default="$(find aimove_gd_robotchallenge)/worlds/simulation.world"/>
+'''

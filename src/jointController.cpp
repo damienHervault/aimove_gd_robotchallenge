@@ -24,6 +24,9 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
 
+#include <gazebo_msgs/ModelState.h>
+#include <gazebo_msgs/SetModelState.h>
+
 #include <chrono>
 
 #define USE_KINECT
@@ -292,9 +295,42 @@ int main(int argc, char* argv[]) {
   bool first_step = true;
   auto t1 = high_resolution_clock::now();
 
+  // Hand point pose manager
+  ros::ServiceClient set_model_state_client = nh.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
+  gazebo_msgs::SetModelState wrist_state_srv_msg;
+  wrist_state_srv_msg.request.model_state.model_name = "wrist_point";
+  wrist_state_srv_msg.request.model_state.pose.position.x = 0.0;
+  wrist_state_srv_msg.request.model_state.pose.position.y = 0.0;
+  wrist_state_srv_msg.request.model_state.pose.position.z = 0.0;
+  wrist_state_srv_msg.request.model_state.pose.orientation.x = 0.0;
+  wrist_state_srv_msg.request.model_state.pose.orientation.y = 0.0;
+  wrist_state_srv_msg.request.model_state.pose.orientation.z = 0.0;
+  wrist_state_srv_msg.request.model_state.pose.orientation.w = 1.0;
+  wrist_state_srv_msg.request.model_state.reference_frame = "world";
+  gazebo_msgs::SetModelState elbow_state_srv_msg;
+  elbow_state_srv_msg.request.model_state.model_name = "elbow_point";
+  elbow_state_srv_msg.request.model_state.pose.position.x = 0.0;
+  elbow_state_srv_msg.request.model_state.pose.position.y = 0.0;
+  elbow_state_srv_msg.request.model_state.pose.position.z = 0.0;
+  elbow_state_srv_msg.request.model_state.pose.orientation.x = 0.0;
+  elbow_state_srv_msg.request.model_state.pose.orientation.y = 0.0;
+  elbow_state_srv_msg.request.model_state.pose.orientation.z = 0.0;
+  elbow_state_srv_msg.request.model_state.pose.orientation.w = 1.0;
+  elbow_state_srv_msg.request.model_state.reference_frame = "world";
+
   while (ros::ok()){
 
-    if (!isnan(pos_wrist[0])) {
+    if (!isnan(pos_wrist[0]) && !isnan(pos_elbow[0])) {
+      // Set helper points pose
+      wrist_state_srv_msg.request.model_state.pose.position.x = pos_wrist[0];
+      wrist_state_srv_msg.request.model_state.pose.position.y = pos_wrist[1];
+      wrist_state_srv_msg.request.model_state.pose.position.z = pos_wrist[2];
+      set_model_state_client.call(wrist_state_srv_msg);
+      elbow_state_srv_msg.request.model_state.pose.position.x = pos_elbow[0];
+      elbow_state_srv_msg.request.model_state.pose.position.y = pos_elbow[1];
+      elbow_state_srv_msg.request.model_state.pose.position.z = pos_elbow[2];
+      set_model_state_client.call(elbow_state_srv_msg);
+
       double q[6] = {traj.points[0].positions[0],traj.points[0].positions[1],
                      traj.points[0].positions[2],traj.points[0].positions[3],
                      traj.points[0].positions[4],traj.points[0].positions[5]};
