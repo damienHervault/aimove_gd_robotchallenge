@@ -294,6 +294,14 @@ int main(int argc, char* argv[]) {
   double tableDiff_dir_wrist_elbow[3] = {};
   Eigen::Vector3d unit_wrist_elbow;
 
+  double wrist_robot_ref[3] = {};
+  double old_wrist_robot_ref[3] = {};
+
+  double elbow_robot_ref[3] = {};
+  double old_elbow_robot_ref[3] = {};
+
+  double refs_offset[3] = {};
+
 
   bool first_step = true;
   auto t1 = high_resolution_clock::now();
@@ -324,15 +332,10 @@ int main(int argc, char* argv[]) {
   while (ros::ok()){
 
     if (!isnan(pos_wrist[0]) && !isnan(pos_elbow[0])) {
-      // Set helper points pose
-      wrist_state_srv_msg.request.model_state.pose.position.x = pos_wrist[0];
-      wrist_state_srv_msg.request.model_state.pose.position.y = pos_wrist[1];
-      wrist_state_srv_msg.request.model_state.pose.position.z = pos_wrist[2];
-      set_model_state_client.call(wrist_state_srv_msg);
-      elbow_state_srv_msg.request.model_state.pose.position.x = pos_elbow[0];
-      elbow_state_srv_msg.request.model_state.pose.position.y = pos_elbow[1];
-      elbow_state_srv_msg.request.model_state.pose.position.z = pos_elbow[2];
-      set_model_state_client.call(elbow_state_srv_msg);
+
+
+
+
 
       double q[6] = {traj.points[0].positions[0],traj.points[0].positions[1],
                      traj.points[0].positions[2],traj.points[0].positions[3],
@@ -344,6 +347,44 @@ int main(int argc, char* argv[]) {
       //{0.2,0.2,0.5};
 
       double ee_pos[3] = {T[3],T[7],T[11]};
+
+      // Set helper points pose
+      toTable(pos_wrist, wrist_robot_ref);
+
+      if(first_step){
+        refs_offset[0] = ee_pos[0] - wrist_robot_ref[0];
+        refs_offset[1] = ee_pos[1] - wrist_robot_ref[1];
+        refs_offset[2] = ee_pos[2] - wrist_robot_ref[2];
+      }
+
+      if(sqrtf(pow(wrist_robot_ref[0]-old_wrist_robot_ref[0],2.0) + pow(wrist_robot_ref[1]-old_wrist_robot_ref[1],2.0) + pow(wrist_robot_ref[2]-old_wrist_robot_ref[2],2.0))>=0.2 and !first_step){
+        wrist_robot_ref[0] = old_wrist_robot_ref[0];
+        wrist_robot_ref[1] = old_wrist_robot_ref[1];
+        wrist_robot_ref[2] = old_wrist_robot_ref[2];
+      }else{
+        old_wrist_robot_ref[0] = wrist_robot_ref[0];
+        old_wrist_robot_ref[1] = wrist_robot_ref[1];
+        old_wrist_robot_ref[2] = wrist_robot_ref[2];
+      }
+      wrist_state_srv_msg.request.model_state.pose.position.x = wrist_robot_ref[0]+ refs_offset[0];
+      wrist_state_srv_msg.request.model_state.pose.position.y = wrist_robot_ref[1]+ refs_offset[1];
+      wrist_state_srv_msg.request.model_state.pose.position.z = wrist_robot_ref[2] + refs_offset[2];
+      set_model_state_client.call(wrist_state_srv_msg);
+      toTable(pos_elbow, elbow_robot_ref);
+
+      if(sqrtf(pow(elbow_robot_ref[0]-old_elbow_robot_ref[0],2.0) + pow(elbow_robot_ref[1]-old_elbow_robot_ref[1],2.0) + pow(elbow_robot_ref[2]-old_elbow_robot_ref[2],2.0))>=0.2 and !first_step){
+        elbow_robot_ref[0] = old_elbow_robot_ref[0];
+        elbow_robot_ref[1] = old_elbow_robot_ref[1];
+        elbow_robot_ref[2] = old_elbow_robot_ref[2];
+      }else{
+        old_elbow_robot_ref[0] = elbow_robot_ref[0];
+        old_elbow_robot_ref[1] = elbow_robot_ref[1];
+        old_elbow_robot_ref[2] = elbow_robot_ref[2];
+      }
+      elbow_state_srv_msg.request.model_state.pose.position.x = elbow_robot_ref[0] + refs_offset[0];
+      elbow_state_srv_msg.request.model_state.pose.position.y = elbow_robot_ref[1] + refs_offset[1];
+      elbow_state_srv_msg.request.model_state.pose.position.z = elbow_robot_ref[2] + refs_offset[2];
+      set_model_state_client.call(elbow_state_srv_msg);
 
 
 
