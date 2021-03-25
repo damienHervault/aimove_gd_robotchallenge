@@ -30,3 +30,20 @@ replace in universal_robot/ur_gazebo/launch/ur3.launch
 '''
 <arg name="world_name" default="$(find aimove_gd_robotchallenge)/worlds/simulation.world"/>
 '''
+
+### Launching the experiment:
+Shell 1:  
+roslaunch aimove_gd_robotchallenge gazebo.launch  
+
+Shell 2:  
+roslaunch ur3_moveit_config ur3_moveit_planning_execution.launch sim:=true  
+
+Shell 3:  
+roslaunch ur3_moveit_config moveit_rviz.launch config:=true  
+
+Shell 4:  
+##For the arm following experiment
+roslaunch aimove_gd_robotchallenge joint_run.launch  
+##or##  
+##For the writing on a plan experiment  
+roslaunch aimove_gd_robotchallenge writting_run.launch  
