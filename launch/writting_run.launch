@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+  <node name="writtingController_node" pkg="aimove_gd_robotchallenge" type="writtingController_node" output="screen" >
+  </node>
+</launch>
