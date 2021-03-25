@@ -42,7 +42,7 @@ Shell 3:
 roslaunch ur3_moveit_config moveit_rviz.launch config:=true  
 
 Shell 4:  
-##For the arm following experiment
+##For the arm following experiment  
 roslaunch aimove_gd_robotchallenge joint_run.launch  
 ##or##  
 ##For the writing on a plan experiment  
