@@ -171,6 +171,22 @@ add_executable(jointController_node
   src/RGBDPlaneDetection/MRF2.2/TRW-S.cpp
   )
 
+add_executable(writtingController_node
+  src/writtingController.cpp
+  src/cameraReader.cpp
+  src/RGBDPlaneDetection/plane_detection.cpp
+  src/RGBDPlaneDetection/MRF2.2/BP-S.cpp
+  src/RGBDPlaneDetection/MRF2.2/GCoptimization.cpp
+  src/RGBDPlaneDetection/MRF2.2/graph.cpp
+  src/RGBDPlaneDetection/MRF2.2/ICM.cpp
+  src/RGBDPlaneDetection/MRF2.2/LinkedBlockList.cpp
+  src/RGBDPlaneDetection/MRF2.2/maxflow.cpp
+  src/RGBDPlaneDetection/MRF2.2/MaxProdBP.cpp
+  src/RGBDPlaneDetection/MRF2.2/mrf.cpp
+  src/RGBDPlaneDetection/MRF2.2/regions-maxprod.cpp
+  src/RGBDPlaneDetection/MRF2.2/TRW-S.cpp
+  )
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -181,6 +197,7 @@ add_executable(jointController_node
 ## same as for the library above
 add_dependencies(armController_node ${armController_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(jointController_node ${jointController_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(writtingController_node ${writtingController_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(armController_node
@@ -189,6 +206,11 @@ target_link_libraries(armController_node
 )
 
 target_link_libraries(jointController_node
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBS}
+)
+
+target_link_libraries(writtingController_node
    ${catkin_LIBRARIES}
    ${OpenCV_LIBS}
 )
